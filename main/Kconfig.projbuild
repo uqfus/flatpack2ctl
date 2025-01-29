@@ -1,0 +1,57 @@
+menu "flatpack2ctl Configuration"
+
+    config TWAI_TX_GPIO_NUM
+        int "CAN tranceiver TX GPIO number"
+        default 17 if IDF_TARGET_ESP32
+        default 17
+        help
+            This option selects the GPIO pin used for CAN transmit. Default to GPIO_NUM_17
+
+    config TWAI_RX_GPIO_NUM
+        int "CAN tranceiver RX GPIO number"
+        default 16 if IDF_TARGET_ESP32
+        default 16
+        help
+            This option selects the GPIO pin used for CAN receive. Default to GPIO_NUM_16
+
+    config TWAI_SLOPE_GPIO_NUM
+        int "CAN tranceiver slope control GPIO number"
+        default 23 if IDF_TARGET_ESP32
+        default 23
+        help
+            This option selects the GPIO pin used for CAN slope control.
+            Can improve stability in CAN transmission. Default to GPIO_NUM_23
+
+    config STATUS_LED_GPIO_NUM
+        int "Status LED GPIO number"
+        default 2 if IDF_TARGET_ESP32
+        default 2
+        help
+            This option selects the GPIO pin used for the status LED control. Default to GPIO_NUM_2
+
+    config RELAY_GPIO_NUM
+        int "Relay GPIO number"
+        default 33 if IDF_TARGET_ESP32
+        default 33
+        help
+            This option selects the GPIO pin used for the relay control. For pin configured as GPIO_MODE_OUTPUT
+            gpio_get_level always return 0 so get it state direct from GPIO_OUT1_REG
+            #define RELAY_GPIO_GET_LEVEL_DIRECT ((GPIO_REG_READ(GPIO_OUT1_REG) >> (RELAY_GPIO - 32)) & 0x1)
+            Default to GPIO_NUM_33. If you want use GPIO < 32 do modify RELAY_GPIO_GET_LEVEL_DIRECT macro and range
+
+    config POWERMETER_UART_RX_GPIO_NUM
+        int "Power meter HLW8032 RX GPIO number"
+        default 14 if IDF_TARGET_ESP32
+        default 14
+        help
+            This option selects the GPIO pin used for receive power meter UART data from HLW8032. Default to GPIO_NUM_14
+
+    config POWERMETER_UART_TX_GPIO_NUM
+        int "Power meter HLW8032 TX GPIO number"
+        default 12 if IDF_TARGET_ESP32
+        default 12
+        help
+            This option selects the GPIO pin used for transmit UART data. Transmission not used but pin should be defined.
+            Default to GPIO_NUM_12
+
+endmenu

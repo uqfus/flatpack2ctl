@@ -1,0 +1,1 @@
+curl --data-binary @build\esp32study.bin http://esp32study-ECE0.local/updateota

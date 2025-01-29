@@ -1,0 +1,205 @@
+https://github.com/neggles/flatpack2s2/blob/main/docs/Protocol.md
+
+I have five flatpack2 chargers with SN:
+183371037950 'FLATPACK2 48/2000 HE B-F' HW:4 SW:1.02/2.00
+145172008395 'FLATPACK2 48/2000 HE' HW:4 SW:2.00/2.00
+172650024173 'FLATPACK2 48/2000 HE' HW:6 SW:3.00/3.00
+163850019608 'FLATPACK2 48/2000 HE' HW:5.4 SW:3.00/3.00
+192750001639 'FLATPACK2 48/2000 HE' HW:9 SW:4.01/4.00
+Only two last simultaneously communicate with smartpack2 master and my flatpack2ctl.
+Any other pair (or more) communicate only one charger, one of them stays silent.
+That could be CAN passive state. Silent charger detects CAN errors and turn off CAN.
+But LED indication shows no errors, only green LED is on.
+
+Reverse engineered CAN communication protocol.
+Used smartpack2 'ASK' + flatpack2 charger 'REPL' + CAN logger on esp32.
+There are requests issued by smartpack2 control unit
+--ff---- mean 'to all chargers'
+ASK  05ff8000 09 7c 00 00 -- Efficiency = disable
+ASK  05ff8000 09 7c 00 01 -- Efficiency = Enable efficiency manager
+ASK  05ff8000 09 7c 00 02 -- Efficiency = HE priority
+
+ASK  05ff8000 09 80 00 00 -- current limit active
+ASK  05ff8000 09 80 00 01 -- current limit disable
+ASK  05ff8000 09 84 00 4c 04  set current limit 044c - 1100??? - dont know how its affects to charger
+
+ASK  05ff8000 09 a8 00 01 - Enable Rectifier Fail when mains is gone
+ASK  05ff8000 09 a8 00 00 - Suppress Rectifier Fail when mains is gone
+
+ASK  05ffbffe 0b ac 00 01 - long walkin???
+ASK  05ffbffe 0b ac 00 00 - short walkin???
+ASK  05ff8000 09 ac 00 01 - long walkin
+ASK  05ff8000 09 ac 00 00 - short walkin
+
+ASK  05ff8000 09 dc 00 24 5e -- 5e24 - 24100 - 2.41V per batt cell
+ASK  05ff8000 09 dc 00 c0 5d -- 5dc0 - 24000 0 2.40V per batt cell
+
+ASK  05ff8000 09 e0 00 18 15 -- emergency voltage = 0x1518 = 5400 = 54.00V
+*************************************************************************************************
+Standalone state: charger seraching master control unit
+REPL 05024400 16 38 50 01 96 08 00 00 -- ID 2 in standalone state
+ASK  05004808 16 38 50 01 96 08 00 00 -- login set ID 2
+REPL 05014400 19 27 50 00 16 39 14 00 -- ID 1 in standalone state
+ASK  05004804 19 27 50 00 16 39 00 00 -- login set ID 1
+*************************************************************************************************
+Unknown:
+ASK  0500bd72 5d 40 00 ???
+REPL 0500ac02 7b 04 00 00 00 01 01
+REPL 0502ac00 33 05 00 00 00 01 01
+
+ASK  0500bed0 08 08 00 ???
+REPL 0502bed0 0e 08 00 00 00 00 00
+REPL 0501bed0 0e 08 00 00 00 00 00
+
+ASK  05ff8000 09 20 00 01 ???
+     0500bffe 0b 18 00 11
+     0500bdfe cd 81 00
+     0500bffe 0b 18 00 11
+
+???
+ASK  05ff8000 b0 11 00
+ASK  05ffbffc 18 00 00
+ASK  05ffbffc b0 01 00
+ASK  05ffbffc a8 01 00
+ASK  05ff8000 08 20 00
+ASK  05ff8000 88 01 00
+ASK  05ffbffc 08 34 00
+ASK  05ff8000 20 00 00
+ASK  05ffbffc 18 12 00
+*************************************************************************************************
+These values can be requested individually. But charger in active state send them in status packet.
+Wonder what means all these magic numbers?
+ASK  05019c00 18 00 00 -- get current
+REPL 05019c00 1b 00 00 00 00 current
+
+ASK  05019800 20 00 00
+REPL 05019800 23 00 00 23 00 temperatureIn 35 *C - 0x23
+
+ASK  05019c00 20 00 00
+REPL 05019c00 23 00 00 24 00  temperatureOut 36 *C - 0x24
+
+ASK  05019c00 20 01 00 -- ???
+REPL 05019c00 23 01 00 a6 01 - 0x01A6 = 422
+
+ASK  05029804 c8 00 00 -- no answer
+
+ASK  05029804 c8 01 00
+REPL 05029804 cb 01 00 d8 00 -- acvoltin 216V = 0xD8
+
+ASK  05019C00 29 15 00 18 15 -- set default voltage 54V = 5400 = 0x1518
+REPL 05019c00 2b 15 00 18 15 -  default voltage set
+*************************************************************************************************
+Charger info returns in multiple packets.
+0501bc00 53 00 86 46 4c 41 54 50 "FLATP" -- request Name 0501bc00 50 00 00
+0501bc00 53 00 05 41 43 4b 32 20 "ACK2 "
+0501bc00 53 00 04 34 38 2f 32 30 "48/20"
+0501bc00 53 00 03 30 30 20 48 45 "00 HE"
+0501bc00 53 00 02 00 00 00 00 00
+0501bc00 53 00 01 00 00
+0501bc00 53 04 83 32 34 31 31 31 "24111" -- request Part Number 0501bc00 50 04 00
+0501bc00 53 04 02 35 2e 31 30 35 "5.105"
+0501bc00 53 04 01 00 00
+0501bc00 53 08 82 19 27 50 00 16 "1927500016" -- request serial 0501bc00 50 08 00
+0501bc00 53 08 01 39             "39"
+0501bc00 53 0c 82 39 00 00 00 00 "9" -- request hardwareVersion 0501bc00 50 0c 00
+0501bc00 53 0c 01 00
+         ^^ ^^ ^^ 86 - first packet of total six, 05 - second packet, ... 01 - last packet
+         ^^ ^^reply to request
+         ^^always 53
+
+ASK  05018804 60 08 00 - SW Part # Primary  "404221.009"
+REPL 05018805 65 08 83 34 30 34 32 32 40422
+REPL 05018805 65 08 02 31 2e 30 30 39 1.009
+REPL 05018805 65 08 01 00 00
+
+ASK  05018804 60 08 00 - SW Part # Primary "404266.009"
+REPL 05018805 65 08 83 34 30 34 32 36 40426
+REPL 05018805 65 08 02 35 2e 30 30 39 5.009
+REPL 05018805 65 08 01 00 00
+
+ASK  05018804 60 0c 00 - SW Rev. Primary  "3.00"
+REPL 05018805 65 0c 82 33 2e 30 30 00 3.00
+REPL 05018805 65 0c 01 00
+
+ASK  05018804 60 0c 00 - SW Rev. Primary  "4.01"
+REPL 05018805 65 0c 82 34 2e 30 31 00 4.01
+REPL 05018805 65 0c 01 00
+**
+ASK  05018404 60 08 00 - SW Part # Secondary  "404266.009"
+REPL 05018405 65 08 83 34 30 34 32 36 40426
+REPL 05018405 65 08 02 36 2e 30 30 39 6.009
+REPL 05018405 65 08 01 00 00
+
+ASK  05018404 60 0c 00 - SW Rev. Secondary  "4.00"
+REPL 05018405 65 0c 82 34 2e 30 30 00 4.00
+REPL 05018405 65 0c 01 00
+**
+ASK  05028804 60 00 00 -- empty answer
+REPL 05028805 65 00 86 00 00 00 00 00 
+REPL 05028805 65 00 05 00 00 00 00 00
+REPL 05028805 65 00 04 00 00 00 00 00
+REPL 05028805 65 00 03 00 00 00 00 00
+REPL 05028805 65 00 02 00 00 00 00 00
+REPL 05028805 65 00 01 00 00
+ASK  05028804 60 04 00 -- empty answer
+REPL 05028805 65 04 86 00 00 00 00 00
+REPL 05028805 65 04 05 00 00 00 00 00
+REPL 05028805 65 04 04 00 00 00 00 00
+REPL 05028805 65 04 03 00 00 00 00 00
+REPL 05028805 65 04 02 00 00 00 00 00
+REPL 05028805 65 04 01 00 00
+*************************************************************************************************
+ASK  0501bc00 50 00 00 - req name     "FLATPACK2 48/2000 HE"
+REPL 0501bc00 53 00 86 46 4c 41 54 50 FLATP
+REPL 0501bc00 53 00 05 41 43 4b 32 20 ACK2 
+REPL 0501bc00 53 00 04 34 38 2f 32 30 48/20
+REPL 0501bc00 53 00 03 30 30 20 48 45 00 HE
+REPL 0501bc00 53 00 02 00 00 00 00 00
+REPL 0501bc00 53 00 01 00 00
+
+ASK  0501bc00 50 04 00 - req Part Number "241115.105"
+REPL 0501bc00 53 04 83 32 34 31 31 31 24111
+REPL 0501bc00 53 04 02 35 2e 31 30 35 5.105
+REPL 0501bc00 53 04 01 00 00
+
+ASK  0501bc00 50 08 00 - req serial "192750001639"
+REPL 0501bc00 53 08 82 19 27 50 00 16
+REPL 0501bc00 53 08 01 39
+
+ASK  0501bc00 50 0c 00 - req HW ver  "9"
+REPL 0501bc00 53 0c 82 39 00 00 00 00
+REPL 0501bc00 53 0c 01 00
+*************************************************************************************************
+ASK  0501bc00 08 34 00  ???
+REPL 0501bc00 0b 34 00 01
+*************************************************************************************************
+ASK  0501bc00 08 04 00  req warnings
+REPL 0501bc00 0e 04 00 00 00 00 00
+
+ASK  0501bc00 08 08 00  req alarms
+REPL 0501bc00 0e 08 00 00 00 00 00
+
+REPL warnings and alarms
+0501bc00 0e 04 00 80 00 00 00
+0501bc00 0e 08 00 14 00 00 00
+         ^^ ^^    ^^ bits of active warnings/alarms
+         ^^ ^^reply to request 0x04-warnings 0x08-alarms
+         ^^always 0x0e
+
+alarms bits
+0x04 Low mains shutdown
+???  High temperature shutdown
+???  Rectifier Failure
+???  Overvoltage shutdown on output
+???  Fan failure
+0x10 Low voltage alarm at 43.5V
+???  CAN bus failure
+
+warnings bits
+???  Low temperature shutdown
+???  Rectifier in power derate mode
+0x80 Remote battery current limit activated
+???  Input voltage out of range, flashing at overvoltage
+???  Loss of CAN communication with control unit, stand alone mode
+
+0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80

@@ -1,0 +1,1 @@
+curl --data-binary @build\flatpack2ctl.bin http://flatpack2ctl-BD2C.local/updateota

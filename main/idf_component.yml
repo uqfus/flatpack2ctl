@@ -1,0 +1,7 @@
+dependencies:
+  uqfus/esp32-wifi-provision-care:
+    git: https://github.com/uqfus/esp32-wifi-provision-care.git
+  h2zero/esp-libtelnet:
+    git: https://github.com/h2zero/esp-libtelnet.git
+  espressif/mdns: "^1.0.3"
+  joltwallet/littlefs: "~=1.14.4"
