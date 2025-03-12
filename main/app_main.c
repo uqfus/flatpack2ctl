@@ -1,20 +1,20 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "esp_console.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
-#include "nvs.h"
+#include "nvs_flash.h" // nvs_flash_* func + "nvs.h"
 #include "time.h"
 #include "sys/time.h"
 #include "esp_netif.h"
-#include "esp_netif_sntp.h"
+#include "esp_netif_sntp.h" // time sync
 #include "esp_sntp.h" // for SNTP_SYNC_MODE_SMOOTH
-#include "esp_mac.h" // esp_read_mac
-#include <dirent.h> // opendir readdir dirent
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "rtc_wdt.h"
+#include "esp_mac.h"  // esp_read_mac
+#include <dirent.h>   // opendir readdir dirent
+#include "driver/gpio.h" // relay and led control
+#include "driver/uart.h" // power meter
+#include "rtc_wdt.h"  // watchdog reset
 #include "cJSON.h"
 
 // component esp32-wifi-provision-care https://github.com/uqfus/esp32-wifi-provision-care.git
@@ -25,6 +25,13 @@
 #include <mdns.h>
 // component joltwallet/littlefs
 #include <esp_littlefs.h>
+// component cmd_vfs https://github.com/uqfus/cmd_vfs_basic.git
+#include "cmd_vfs_basic.h"
+// component ${IDF_PATH}/examples/system/console/advanced/components/cmd_nvs
+#include "cmd_nvs.h"
+// component ${IDF_PATH}/examples/system/console/advanced/components/cmd_system
+#include "cmd_system.h"
+
 // module fp2charger.c
 #include "fp2charger.h"
 
@@ -188,6 +195,7 @@ void logToFile(const char *TAG, const char* format, ...)
     return;
 }
 
+// MARK: storage init
 static esp_err_t storageInit(void)
 {
     const char *TAG = __func__;
@@ -882,119 +890,6 @@ static esp_err_t chart_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-// MARK: HTTP /getdir
-static esp_err_t dir_get_handler(httpd_req_t *req)
-{
-    char entrypath[285];
-    char entrysize[16];
-    const char *entrytype;
-
-    struct dirent *entry;
-    struct stat entry_stat;
-
-    // dir listing
-    DIR *dir = opendir(LITTLEFS_STORAGE_PATH);
-    if (!dir)
-    {
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Directory does not exist");
-        return ESP_OK;
-    }
-
-    size_t total = 0, used = 0;
-    esp_err_t ret = esp_littlefs_info("storage", &total, &used);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to get LittleFS partition information (%s)", esp_err_to_name(ret));
-        httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Failed to get LittleFS partition information.");
-        return ESP_OK;
-    }
-    sprintf(entrypath, "<p>LittleFS partition size: total: %d, free: %d.</p>", total, total - used);
-    httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
-    httpd_resp_sendstr_chunk(req, entrypath);
-
-    /* Send file-list table definition and column labels */
-    httpd_resp_sendstr_chunk(req,
-        "<table class=\"fixed\" border=\"1\">"
-        "<col width=\"800px\" /><col width=\"300px\" /><col width=\"300px\" /><col width=\"100px\" />"
-        "<thead><tr><th>Name</th><th>Type</th><th>Size (Bytes)</th><th>Delete</th></tr></thead>"
-        "<tbody>");
-
-    while ((entry = readdir(dir)) != NULL)
-    {
-        entrytype = (entry->d_type == DT_DIR ? "directory" : "file");
-
-        sprintf(entrypath,"%s/%s", LITTLEFS_STORAGE_PATH, entry->d_name);
-        if (stat(entrypath, &entry_stat) == -1)
-        {
-            ESP_LOGE(TAG, "Failed to stat %s : %s", entrytype, entry->d_name);
-            continue;
-        }
-        sprintf(entrysize, "%ld", entry_stat.st_size);
-
-        /* Send chunk of HTML file containing table entries with file name and size */
-        httpd_resp_sendstr_chunk(req, "<tr><td><a href=\"");
-        httpd_resp_sendstr_chunk(req, req->uri);
-        httpd_resp_sendstr_chunk(req, "?file=");
-        httpd_resp_sendstr_chunk(req, entrypath);
-        if (entry->d_type == DT_DIR)
-        {
-            httpd_resp_sendstr_chunk(req, "/");
-        }
-        httpd_resp_sendstr_chunk(req, "\">");
-        httpd_resp_sendstr_chunk(req, entry->d_name);
-        httpd_resp_sendstr_chunk(req, "</a></td><td>");
-        httpd_resp_sendstr_chunk(req, entrytype);
-        httpd_resp_sendstr_chunk(req, "</td><td>");
-        httpd_resp_sendstr_chunk(req, entrysize);
-        httpd_resp_sendstr_chunk(req, "</td><td>");
-        httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"/delete?file=");
-        httpd_resp_sendstr_chunk(req, entrypath);
-        httpd_resp_sendstr_chunk(req, "\"><button type=\"submit\">Delete</button></form>");
-        httpd_resp_sendstr_chunk(req, "</td></tr>\n");
-    }
-    closedir(dir);
-
-    httpd_resp_sendstr_chunk(req, "</tbody></table>");
-    httpd_resp_sendstr_chunk(req, "</body></html>");
-    httpd_resp_sendstr_chunk(req, NULL);
-    return ESP_OK;
-}
-
-// MARK: HTTP /delete
-static esp_err_t delete_post_handler(httpd_req_t *req)
-{
-    struct stat file_stat;
-
-    char  *buf = NULL;
-    size_t buf_len;
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1)
-    {
-        buf = malloc(buf_len);
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
-        {
-            char deletefile[165];
-            if ( httpd_query_key_value( buf, "file", deletefile, sizeof(deletefile) ) == ESP_OK )
-            {
-                if (stat(deletefile, &file_stat) == -1)
-                {
-                    free(buf);
-                    httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File does not exist.");
-                    return ESP_OK;
-                }
-                unlink(deletefile);
-            }
-        }
-        free(buf);
-    }
-
-    // Redirect onto /getdir to see the updated file list
-    httpd_resp_set_status(req, "303 See Other");
-    httpd_resp_set_hdr(req, "Location", "/getdir");
-    httpd_resp_sendstr(req, "File deleted successfully.");
-    return ESP_OK;
-}
-
 // MARK: start httpd
 static void start_webserver(void)
 {
@@ -1021,11 +916,6 @@ static void start_webserver(void)
         const httpd_uri_t ctl_uri = { .uri = "/ctl", .method = HTTP_GET, .handler = ctl_get_handler };
         httpd_register_uri_handler(server, &ctl_uri);
 
-        const httpd_uri_t getdir_uri = { .uri = "/getdir", .method = HTTP_GET, .handler = dir_get_handler };
-        httpd_register_uri_handler(server, &getdir_uri);
-        const httpd_uri_t delete_uri = { .uri = "/delete", .method = HTTP_POST, .handler = delete_post_handler };
-        httpd_register_uri_handler(server, &delete_uri);
-
         httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
     }
     return;
@@ -1033,6 +923,7 @@ static void start_webserver(void)
 
 // MARK: NVS stats
 // dump NVS partition stats
+/*
 static void nvs_list_all(void)
 {
     const char *TAG = __func__;
@@ -1052,10 +943,32 @@ static void nvs_list_all(void)
     }
     nvs_release_iterator(it);
 }
-
+*/
+// MARK: telnet console
 static void telnet_rx_cb(const char *buf, size_t len)
 {
-    ESP_LOGI(TAG, "Received %d bytes from telnet: %.*s", len, len, buf);
+    char cmdline[256+1]; // ESP_CONSOLE_CONFIG_DEFAULT() .max_cmdline_length = 256
+    if (len >= sizeof(cmdline))
+    {
+        ESP_LOGE(TAG, "Error, command too long.");
+        return;
+    }
+    strlcpy(cmdline, buf, len + 1); // local copy with NUL-termination
+    cmdline[strcspn(cmdline, "\r\n")] = 0; // remove LF, CR, CRLF, LFCR
+
+    int ret;
+    esp_err_t err = esp_console_run(cmdline, &ret);
+    if (err == ESP_ERR_NOT_FOUND) {
+        printf("Unrecognized command\n");
+    } else if (err == ESP_ERR_INVALID_ARG) {
+        // no error, just cmdline was empty
+    } else if (err == ESP_OK && ret != ESP_OK) {
+        printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
+    } else if (err != ESP_OK) {
+        printf("Internal error: %s\n", esp_err_to_name(err));
+    }
+    printf(">");
+    fflush(stdout);
 }
 
 // MARK: app_main
@@ -1074,7 +987,13 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-    nvs_list_all(); // print "nvs" partition usage
+    esp_console_config_t console_config = ESP_CONSOLE_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_console_init(&console_config));
+    esp_console_register_help_command(); // Default 'help' command prints the list of registered commands
+
+    console_register_vfs_basic_func(); // cmd_vfs https://github.com/uqfus/cmd_vfs_basic.git
+    register_system_common();  // examples/system/console/advanced/components/cmd_system
+    register_nvs(); // examples/system/console/advanced/components/cmd_nvs
 
     statusLedInit();
 

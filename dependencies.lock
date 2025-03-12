@@ -1,12 +1,24 @@
 dependencies:
+  cmd_nvs:
+    dependencies: []
+    source:
+      path: C:\Users\root\esp\v5.4\esp-idf\examples\system\console\advanced\components\cmd_nvs
+      type: local
+    version: '*'
+  cmd_system:
+    dependencies: []
+    source:
+      path: C:\Users\root\esp\v5.4\esp-idf\examples\system\console\advanced\components\cmd_system
+      type: local
+    version: '*'
   dns_server:
     dependencies: []
     source:
-      path: C:\Users\root\esp\v5.3.1\esp-idf\examples\protocols\http_server\captive_portal\components\dns_server
+      path: C:\Users\root\esp\v5.4\esp-idf\examples\protocols\http_server\captive_portal\components\dns_server
       type: local
     version: '*'
   espressif/mdns:
-    component_hash: 4e21149422be01c24d4b1d4dec64fa07d136d8c5d234e931f3ebf375cbde51a0
+    component_hash: fe546a92ee741cfabf2c2bb52c9024314e1d0ad32b44794f45323a0ecf1543d7
     dependencies:
     - name: idf
       require: private
@@ -14,7 +26,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.5.2
+    version: 1.7.0
   h2zero/esp-libtelnet:
     component_hash: 1662cf4c754ef24f8ae550c3f9734d27fc3ab8269786074be4cb9fc9c13cb06e
     dependencies:
@@ -30,18 +42,25 @@ dependencies:
       type: idf
     version: 5.4.0
   joltwallet/littlefs:
-    component_hash: 362f1f5beb5087b0c60169aff82676d2d0ffc991ead975212b0cba95959181c5
+    component_hash: 1360533704982391c87cee54a112558725cad1a4994b64aaa083ab4f031a2d6d
     dependencies:
     - name: idf
-      registry_url: https://components.espressif.com
       require: private
-      version: '>=4.3'
+      version: '>=5.0'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.14.8
+    version: 1.18.0
+  uqfus/cmd_vfs_basic:
+    component_hash: 8cca2bac47b42ef831f3172593bb657df744c1cff2eac22e8c551e3fed85d7a3
+    dependencies: []
+    source:
+      git: https://github.com/uqfus/cmd_vfs_basic.git
+      path: .
+      type: git
+    version: 6190d8a1bff82f9eeabbaeba7d3f6c498d20144c
   uqfus/esp32-wifi-provision-care:
-    component_hash: 260cdd18ad6881fde51ce31da84310d0c3bf06b3923db5dd559c623245cf75de
+    component_hash: b7c75dfd4d71512e34fb4ea32fc5512a522491c6bcbadd3eace050c421e63992
     dependencies:
     - name: dns_server
       path: ${IDF_PATH}\examples\protocols\http_server\captive_portal\components\dns_server
@@ -49,12 +68,15 @@ dependencies:
       git: https://github.com/uqfus/esp32-wifi-provision-care.git
       path: .
       type: git
-    version: b5cce15d57b7f4e047d4100818fee59f637dc693
+    version: d6388220744f7c6e52a8f68c9d7a7598cc42991f
 direct_dependencies:
+- cmd_nvs
+- cmd_system
 - espressif/mdns
 - h2zero/esp-libtelnet
 - joltwallet/littlefs
+- uqfus/cmd_vfs_basic
 - uqfus/esp32-wifi-provision-care
-manifest_hash: 1e3594b9b210ab1acf1567d10047ac2eb9ea10218f246c3b92afe32ebe800344
+manifest_hash: 80feafe1c4b90077769a81c0008bdd5bbfff02ec100e5f2fbe39f6e6eddf6fad
 target: esp32
 version: 2.0.0

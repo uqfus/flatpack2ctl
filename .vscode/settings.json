@@ -23,6 +23,9 @@
         "mutex": "cpp",
         "esp_log.h": "c",
         "fp2charger.h": "c",
-        "app_main.h": "c"
-    }
+        "app_main.h": "c",
+        "argtable3.h": "c",
+        "time.h": "c"
+    },
+    "idf.pythonInstallPath": "C:\\Users\\root\\.espressif\\tools\\idf-python\\3.11.2\\python.exe"
 }

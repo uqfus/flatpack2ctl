@@ -7,7 +7,7 @@ add_custom_command(
         non-existing.txt # force to execute on every build (https://gitlab.kitware.com/cmake/cmake/-/issues/17071)
         "${COMPONENT_DIR}/index.html.gz"
     WORKING_DIRECTORY ${COMPONENT_DIR}
-    COMMAND "C:\\Program Files\\7-Zip\\7z.exe" a -tgzip -mx9 index.html.gz index.html
+    COMMAND python -c "import gzip,shutil;f_in=open('index.html','rb');f_out=gzip.open('index.html.gz','wb');shutil.copyfileobj(f_in,f_out)"
     VERBATIM
 )
 

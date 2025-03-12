@@ -1,1 +1,1 @@
-curl --data-binary @build\esp32study.bin http://esp32study-ECE0.local/updateota
+curl --data-binary @build\flatpack2ctl.bin http://flatpack2ctl-ECE0.local/updateota

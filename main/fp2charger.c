@@ -991,13 +991,19 @@ void twaiCtrlTask( void *pvParameters )
             (int)status.state, status.arb_lost_count, status.bus_error_count, 
             twaiTxTotal, status.msgs_to_tx, status.tx_error_counter, status.tx_failed_count, 
             twaiRxTotal, status.msgs_to_rx, status.rx_error_counter, status.rx_missed_count);
+#if configUSE_STATS_FORMATTING_FUNCTIONS
+        char *statsBuffer = malloc(uxTaskGetNumberOfTasks() * 40); /* 40 see vTaskList description */
+        if (statsBuffer != NULL) {
+            vTaskGetRunTimeStats(statsBuffer);
+            fputs(statsBuffer, stdout);
+            free(statsBuffer);
+        }
         ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes.", esp_get_minimum_free_heap_size());
-/*
         ESP_LOGI(TAG, "twaiCtrlTask min available stack size: %d", uxTaskGetStackHighWaterMark(NULL) );
         ESP_LOGI(TAG, "twaiTxTaskHandle min available stack size: %d", uxTaskGetStackHighWaterMark(twaiTxTaskHandle) );
         ESP_LOGI(TAG, "twaiRxTaskHandle min available stack size: %d", uxTaskGetStackHighWaterMark(twaiRxTaskHandle) );
         ESP_LOGI(TAG, "fp2CheckAliveAvailableChargersHandle min available stack size: %d", uxTaskGetStackHighWaterMark(fp2CheckAliveAvailableChargersHandle) );
-*/
+#endif
     }
     vTaskDelete(NULL); // Task functions should never return.
 }
