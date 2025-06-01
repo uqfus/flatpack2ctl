@@ -38,6 +38,7 @@ typedef struct {
 // TWAI transcever configuration
 #define TWAI_TX_GPIO CONFIG_TWAI_TX_GPIO_NUM // CAN tranceiver TX pin
 #define TWAI_RX_GPIO CONFIG_TWAI_RX_GPIO_NUM // CAN tranceiver RX pin
+#define TWAI_SLOPE_GPIO CONFIG_TWAI_SLOPE_GPIO_NUM
 #define TWAI_CTL_TIMEOUT_SEC 4*60*60 // TWAI status print interval
 #define MAX_CHARGER_AVAILABILITY 12 // extend availability for 10s*12 = 120 sec
 #define CHARGER_FIRST_TIME_SEEN 4   // charger first time seen, temporary delays status messages processing

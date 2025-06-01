@@ -11,8 +11,9 @@ void statusLedSet(uint8_t newStatus);
 #define RELAY_GPIO CONFIG_RELAY_GPIO_NUM
 #include "rom/gpio.h"
 // for pin configured as GPIO_MODE_OUTPUT gpio_get_level always return 0
-// so get it state direct from GPIO_OUT1_REG RELAY_GPIO GPIO_NUM_33
-#define RELAY_GPIO_GET_LEVEL_DIRECT ((GPIO_REG_READ(GPIO_OUT1_REG) >> (RELAY_GPIO - 32)) & 0x1)
+// so get it state direct from GPIO_OUT0_REG
+// Default to GPIO_NUM_18. If you want use GPIO > 31 do modify RELAY_GPIO_GET_LEVEL_DIRECT macro and range
+#define RELAY_GPIO_GET_LEVEL_DIRECT ((GPIO_REG_READ(GPIO_OUT_REG) >> (RELAY_GPIO)) & 0x1)
 
 // Power meter task configuration
 // HLW8032 only send data
@@ -20,8 +21,8 @@ void statusLedSet(uint8_t newStatus);
 #define POWERMETER_UART_GPIO_RX CONFIG_POWERMETER_UART_RX_GPIO_NUM
 // 4*470kOhm / 1kOhm / 1000 = 1.88
 #define POWERMETER_VOLTAGE_COEFFICIENT (1.88f)
-// 1 / 0.002Ohm / 1000
-#define POWERMETER_CURRENT_COEFFICIENT (0.5f)
+// 1 / 0.001Ohm / 1000
+#define POWERMETER_CURRENT_COEFFICIENT (1.0f)
 
 // LittleFS configuration
 #define LITTLEFS_PARTITION_LABEL "storage"

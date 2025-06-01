@@ -7,24 +7,22 @@ Eltek flatpack2 is industrial telecom battery charger with digital control via C
 Pay attention to charger connector PCB. Long charging sessions with full charger power can damage connector.
 Gold plated charger connector PCB is strongly required. Or solder wires direct to charger PCB as i did.
 
-![1](assets/img0.png)
-![1](assets/pcb0.jpg)
-
 Done:
 * PCBv1 - for testing
-* Mains control for cheap charge
+* AC mains control for cheap night charge
 * Chart with current, voltage, temperature
 * Limit charger current
 * Set charger default voltage
 * HTML GUI
 * telnet connection with console commands. Type "help" to see all available commands
-
-Working on:
 * PCBv2 - add power meter, do pin compatible with liliGO T-CAN485.
-* Received PCBv2.
 * Add power meter readings to GUI
 
-Unresolved:
+To do:
+* PCBv3 rearrange con.
+
+It was SD360 flux. 
+~~Unresolved:
 
 I have five flatpack2 chargers with SN:
 * 183371037950 'FLATPACK2 48/2000 HE B-F' HW:4 SW:1.02/2.00
@@ -34,6 +32,10 @@ I have five flatpack2 chargers with SN:
 * 192750001639 'FLATPACK2 48/2000 HE' HW:9 SW:4.01/4.00
 
 Only two last simultaneously communicate with smartpack2 master and my flatpack2ctl.
-Any other pair (or more) communicate only one charger, one of them stays silent.
+Any other pair (or more) communicate only one charger, others stays silent.
 That could be CAN passive state. Silent charger detects CAN errors and turn off CAN.
-But LED indication shows no errors, only green LED is on.
+But LED indication shows no errors, only green LED is on.~~
+
+![1](assets/img1.png)
+![1](assets/pcb1.jpg)
+![1](assets/pcb2.jpg)

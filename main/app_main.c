@@ -41,13 +41,14 @@
 static const char *TAG = "flatpack2ctl";
 extern volatile fp2Charger_t seenChargers[FP2_MAX_CHARGERS];
 volatile config_t config;
-float powerMeterVoltage;
-float powerMeterCurrent;
-float powerMeterPowerW;
-float powerMeterPowerVA;
-float powerMeterPowerFactor;
-float powerMeterEnergy;
-uint32_t powerMeterEnergyPulsesOverflows = 0;
+static float powerMeterVoltage;
+static float powerMeterCurrent;
+static float powerMeterPowerW;
+static float powerMeterPowerVA;
+static float powerMeterPowerFactor;
+static float powerMeterEnergy;
+static uint32_t powerMeterEnergyPulsesOverflows = 0;
+static uint8_t energyPulsesCarryFlag = 0;
 
 // MARK: NVS config
 static void LoadConfigFromNVS(void)
@@ -379,7 +380,6 @@ static void relayTask(void *pvParameter)
 static void powerMeterTask(void *pvParameter)
 {
     const char *TAG = __func__;
-    vTaskSuspend(NULL);
     ESP_LOGI(TAG, "Task start.");
     // HLW8032 4800bps + 8 data bit + even bit
     uart_config_t uart_config = {
@@ -415,7 +415,7 @@ static void powerMeterTask(void *pvParameter)
         }
         if (uartBuf[0] != 0x55) // HLW8032 not ready
         {
-            ESP_LOGI(TAG, "HLW8032 State Reg != 0x55.");
+            ESP_LOGI(TAG, "HLW8032 not ready. State Reg != 0x55.");
             continue;
         }
         if (uartBuf[1] != 0x5A) // HLW8032 CheckREG 0x5A
@@ -425,9 +425,9 @@ static void powerMeterTask(void *pvParameter)
         }
         // process only updated values
         uint8_t flags = uartBuf[20];
-        bool energyPulsesCarryFlag = flags & BIT7;
-        if (energyPulsesCarryFlag)
+        if (energyPulsesCarryFlag != (flags & BIT7))
         {
+            energyPulsesCarryFlag = flags & BIT7;
             powerMeterEnergyPulsesOverflows++;
         }
         bool voltageUpdated = flags & BIT6;
@@ -460,8 +460,8 @@ static void powerMeterTask(void *pvParameter)
             powerMeterPowerFactor = powerMeterPowerW / powerMeterPowerVA;
         }
 
-        ESP_LOGI(TAG, "%x Current=%.2f, Voltage=%.2f, PowerW=%.2f, PowerVA=%.2f, PowerFactor=%.2f, Energy=%.3f", flags,
-            powerMeterCurrent, powerMeterVoltage, powerMeterPowerW, powerMeterPowerVA, powerMeterPowerFactor, powerMeterEnergy );
+//        ESP_LOGI(TAG, "%x Current=%.2f, Voltage=%.2f, PowerW=%.2f, PowerVA=%.2f, PowerFactor=%.2f, Energy=%.3f", flags,
+//            powerMeterCurrent, powerMeterVoltage, powerMeterPowerW, powerMeterPowerVA, powerMeterPowerFactor, powerMeterEnergy );
     }
 
     vTaskDelete(NULL); // Task functions should never return.
@@ -527,6 +527,12 @@ static esp_err_t ctl_get_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(root, "dcVoltageSet", config.dcVoltageSet);
         cJSON_AddNumberToObject(root, "relayTurnOnTime", config.relayTurnOnTime);
         cJSON_AddNumberToObject(root, "relayTurnOffTime", config.relayTurnOffTime);
+        cJSON_AddNumberToObject(root, "powerMeterVoltage", powerMeterVoltage);
+        cJSON_AddNumberToObject(root, "powerMeterCurrent", powerMeterCurrent);
+        cJSON_AddNumberToObject(root, "powerMeterPowerW", powerMeterPowerW);
+        cJSON_AddNumberToObject(root, "powerMeterPowerVA", powerMeterPowerVA);
+        cJSON_AddNumberToObject(root, "powerMeterPowerFactor", powerMeterPowerFactor);
+        cJSON_AddNumberToObject(root, "powerMeterEnergy", powerMeterEnergy);
         cJSON *array = cJSON_AddArrayToObject(root, "chargers");
         for (size_t i=0; i<FP2_MAX_CHARGERS; i++)
         {

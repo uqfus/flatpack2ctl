@@ -26,6 +26,11 @@ static QueueHandle_t xTwaiTxQueue; // queue for packets to be transmitted over T
 // 05XX4400
 #define isChargerInStandaloneState(identifier) ((0xFF00FFFF & (identifier)) == 0x05004400)
 
+// 05004804 1638500196080000
+// 05004808 1927500016391400
+// 050048XX
+#define isRequestChargerAssignID(identifier) ((0xFFFFFF00 & (identifier)) == 0x05004800)
+
 // 05014004 2300001214d90033
 // 05024008 2400001315d80034
 // 05XX40XX
@@ -790,6 +795,10 @@ static void processTwaiMsg(twai_message_t *twaiMsg)
     if ( twaiMsg->identifier == (0x05000000 | (((twaiMsg->data[5] << 8) | twaiMsg->data[6]) & 0x3fff) ) )
         return;
 
+    // skip controller issued request AssignID
+    if ( isRequestChargerAssignID(twaiMsg->identifier) )
+        return;
+
     if ( isChargerInStandaloneState(twaiMsg->identifier) )
     {
         fp2ProcessChargerStandaloneState(twaiMsg);
@@ -888,6 +897,16 @@ void twaiCtrlTask( void *pvParameters )
         seenChargers[i].available = 0;
         seenChargers[i].serial = 0;
     }
+
+    static const gpio_config_t slope_conf = {
+        .pin_bit_mask = (1ULL << TWAI_SLOPE_GPIO),
+        .mode         = GPIO_MODE_OUTPUT,
+        .intr_type    = GPIO_INTR_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&slope_conf));
+    gpio_set_level(TWAI_SLOPE_GPIO, 0);
 
     // TWAI driver configuration IRAM mode
     twai_general_config_t twai_g_conf = TWAI_GENERAL_CONFIG_IRAM(TWAI_TX_GPIO, TWAI_RX_GPIO, TWAI_MODE_NORMAL);
